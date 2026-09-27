@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Plane Level</title>
+<style>
+  :root{
+    --bg:#1B1D21; --panel:#232629; --panel-2:#2A2E33;
+    --line:#383C42; --text:#ECE8E1; --text-dim:#8B9096;
+    --amber:#E8A33D; --green:#54B786; --red:#E1604C;
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    display:flex; flex-direction:column; min-height:100%;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .num{ font-variant-numeric:tabular-nums; font-feature-settings:"tnum"; }
+
+  header{
+    padding:18px 20px 14px; border-bottom:1px solid var(--line);
+    padding-top:calc(18px + env(safe-area-inset-top,0px));
+  }
+  h1{font-size:17px; font-weight:600; margin:0 0 10px; letter-spacing:.2px;}
+  .steps{display:flex; gap:8px;}
+  .step-pill{flex:1; height:4px; border-radius:2px; background:var(--line); transition:background .3s;}
+  .step-pill.active{background:var(--amber);}
+  .step-pill.done{background:var(--green);}
+
+  main{flex:1; display:flex; flex-direction:column; padding:20px; gap:18px; max-width:480px; width:100%; margin:0 auto;}
+
+  .instructions{font-size:14.5px; line-height:1.55; color:var(--text-dim);}
+  .instructions b{color:var(--text); font-weight:600;}
+
+  .bubble-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:22px; display:flex; flex-direction:column; align-items:center; gap:16px;
+  }
+  .bubble-field{
+    position:relative; width:180px; height:180px; border-radius:50%;
+    background: radial-gradient(circle at 50% 50%, var(--panel-2) 0%, var(--panel-2) 62%, transparent 63%), var(--panel);
+    border:1px solid var(--line);
+  }
+  .bubble-field::before{ content:""; position:absolute; inset:0; border-radius:50%; border:1px dashed #4A4F56; transform:scale(.35); }
+  .bubble-field::after{ content:""; position:absolute; left:50%; top:50%; width:1px; height:100%; background:var(--line); transform:translate(-50%,-50%); }
+  .crosshair-h{ content:""; position:absolute; left:0; top:50%; width:100%; height:1px; background:var(--line); transform:translateY(-50%); }
+  .bubble{
+    position:absolute; width:26px; height:26px; border-radius:50%; background:var(--amber);
+    top:50%; left:50%; transform:translate(-50%,-50%);
+    box-shadow:0 0 0 6px rgba(232,163,61,.18); transition:background .2s, box-shadow .2s;
+  }
+  .bubble.ok{ background:var(--green); box-shadow:0 0 0 6px rgba(84,183,134,.2); }
+
+  .readout-row{display:flex; gap:14px; width:100%;}
+  .readout{flex:1; background:var(--panel-2); border-radius:10px; padding:10px 12px; text-align:center;}
+  .readout .label{font-size:11px; color:var(--text-dim); margin-bottom:2px;}
+  .readout .value{font-size:20px; font-weight:600;}
+
+  button{
+    font-family:inherit; border:none; border-radius:12px; padding:16px;
+    font-size:16px; font-weight:600; cursor:pointer; -webkit-user-select:none; user-select:none;
+  }
+  .btn-primary{background:var(--amber); color:#20180A;}
+  .btn-primary:active{opacity:.85;}
+  .btn-secondary{background:var(--panel-2); color:var(--text); border:1px solid var(--line);}
+
+  .status-line{ text-align:center; font-size:14px; color:var(--text-dim); min-height:20px; }
+  .status-line.ok{color:var(--green); font-weight:600;}
+
+  .viz-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:14px 10px 6px;
+  }
+  .viz-card svg{width:100%; height:auto; display:block;}
+  .viz-label{
+    font-size:10.5px; fill:var(--text-dim); text-anchor:middle;
+  }
+  .viz-value{
+    font-size:11px; font-weight:700; text-anchor:middle;
+  }
+
+  .corner-grid{
+    display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr;
+    gap:10px; aspect-ratio:1/1; max-width:280px; margin:0 auto; width:100%;
+  }
+  .corner{
+    background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:4px; padding:10px; text-align:center;
+  }
+  .corner .tag{font-size:11px; color:var(--text-dim); letter-spacing:.3px;}
+  .corner .arrow{font-size:26px; line-height:1; font-weight:700;}
+  .corner .amt{font-size:12px; color:var(--text-dim);}
+  .corner.up .arrow{color:var(--red);}
+  .corner.down .arrow{color:var(--amber);}
+  .corner.ok .arrow{color:var(--green);}
+
+  .legend{display:flex; gap:16px; justify-content:center; font-size:12px; color:var(--text-dim); flex-wrap:wrap;}
+  .legend span{display:inline-flex; align-items:center; gap:5px;}
+  .dot{width:8px; height:8px; border-radius:50%;}
+  .dot.up{background:var(--red);}
+  .dot.down{background:var(--amber);}
+  .dot.ok{background:var(--green);}
+
+  .footer-actions{display:flex; gap:10px;}
+  .footer-actions button{flex:1;}
+
+  .error-box{ background:var(--panel); border:1px solid var(--red); border-radius:10px; padding:14px; font-size:13.5px; color:var(--text-dim); line-height:1.5; }
+  .hidden{display:none !important;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1 id="stepTitle">Step 1 — Calibrate surface 1</h1>
+  <div class="steps">
+    <div class="step-pill active" id="pill1"></div>
+    <div class="step-pill" id="pill2"></div>
+  </div>
+</header>
+
+<main>
+
+  <div id="permissionScreen">
+    <p class="instructions">This tool uses your phone's motion sensors to compare the tilt of two surfaces. It needs permission to read sensor data.</p>
+    <button class="btn-primary" id="enableBtn">Enable motion sensors</button>
+    <div class="error-box hidden" id="permError"></div>
+  </div>
+
+  <!-- STEP 1 -->
+  <div id="step1" class="hidden">
+    <p class="instructions">Place the phone flat on <b>surface 1</b> — the reference surface — and hold it still.</p>
+
+    <div class="bubble-card">
+      <div class="bubble-field">
+        <div class="crosshair-h"></div>
+        <div class="bubble" id="bubble1"></div>
+      </div>
+      <div class="readout-row">
+        <div class="readout"><div class="label">Front–back</div><div class="value num" id="beta1">0.0°</div></div>
+        <div class="readout"><div class="label">Left–right</div><div class="value num" id="gamma1">0.0°</div></div>
+      </div>
+    </div>
+
+    <div class="status-line" id="status1">Hold steady, then calibrate.</div>
+    <button class="btn-primary" id="calibrateBtn">Calibrate this as zero</button>
+  </div>
+
+  <!-- STEP 2 -->
+  <div id="step2" class="hidden">
+    <p class="instructions">Move the phone to <b>surface 2</b>, orienting it the <b>same way</b> as during calibration (same edge facing the same direction). Adjust the four corners until each one reads level.</p>
+
+    <div class="viz-card">
+      <svg viewBox="0 0 300 190" xmlns="http://www.w3.org/2000/svg">
+        <!-- reference (level) plane, shown flat/dashed -->
+        <polygon points="95,50 205,50 255,140 45,140" fill="none" stroke="#4A4F56" stroke-width="1.5" stroke-dasharray="4 4"/>
+        <!-- elevation stems from reference to current corner position -->
+        <line id="stemBL" x1="95" y1="50" x2="95" y2="50" stroke="var(--text-dim)" stroke-width="1.5"/>
+        <line id="stemBR" x1="205" y1="50" x2="205" y2="50" stroke="var(--text-dim)" stroke-width="1.5"/>
+        <line id="stemFL" x1="45" y1="140" x2="45" y2="140" stroke="var(--text-dim)" stroke-width="1.5"/>
+        <line id="stemFR" x1="255" y1="140" x2="255" y2="140" stroke="var(--text-dim)" stroke-width="1.5"/>
+        <!-- current tilted surface -->
+        <polygon id="tiltPlane" points="95,50 205,50 255,140 45,140" fill="rgba(232,163,61,0.14)" stroke="var(--amber)" stroke-width="2"/>
+        <!-- corner dots -->
+        <circle id="dotBL" cx="95" cy="50" r="7" fill="var(--amber)"/>
+        <circle id="dotBR" cx="205" cy="50" r="7" fill="var(--amber)"/>
+        <circle id="dotFL" cx="45" cy="140" r="7" fill="var(--amber)"/>
+        <circle id="dotFR" cx="255" cy="140" r="7" fill="var(--amber)"/>
+        <!-- labels -->
+        <text x="95" y="30" class="viz-label">Back · Left</text>
+        <text x="205" y="30" class="viz-label">Back · Right</text>
+        <text x="45" y="168" class="viz-label">Front · Left</text>
+        <text x="255" y="168" class="viz-label">Front · Right</text>
+      </svg>
+      <div class="legend" style="margin-top:2px; margin-bottom:8px;">
+        <span><span class="dot up"></span>currently low — raise</span>
+        <span><span class="dot down"></span>currently high — lower</span>
+        <span><span class="dot ok"></span>level</span>
+      </div>
+    </div>
+
+    <div class="corner-grid">
+      <div class="corner" id="cornerBL"><div class="tag">Back · Left</div><div class="arrow">–</div><div class="amt num">0.0°</div></div>
+      <div class="corner" id="cornerBR"><div class="tag">Back · Right</div><div class="arrow">–</div><div class="amt num">0.0°</div></div>
+      <div class="corner" id="cornerFL"><div class="tag">Front · Left</div><div class="arrow">–</div><div class="amt num">0.0°</div></div>
+      <div class="corner" id="cornerFR"><div class="tag">Front · Right</div><div class="arrow">–</div><div class="amt num">0.0°</div></div>
+    </div>
+
+    <div class="legend">
+      <span><span class="dot up"></span>raise this corner</span>
+      <span><span class="dot down"></span>lower this corner</span>
+      <span><span class="dot ok"></span>level</span>
+    </div>
+
+    <div class="readout-row">
+      <div class="readout"><div class="label">Front–back offset</div><div class="value num" id="beta2">0.0°</div></div>
+      <div class="readout"><div class="label">Left–right offset</div><div class="value num" id="gamma2">0.0°</div></div>
+    </div>
+
+    <div class="status-line" id="status2">Adjusting…</div>
+
+    <div class="footer-actions">
+      <button class="btn-secondary" id="recalibrateBtn">Recalibrate surface 1</button>
+    </div>
+  </div>
+
+</main>
+
+<script>
+(function(){
+  const TOL = 0.3; // degrees considered "level"
+  let ref = null; // {beta, gamma}
+  let current = {beta:0, gamma:0};
+  let step = 1;
+  let wakeLock = null;
+
+  async function requestWakeLock(){
+    try{
+      if ('wakeLock' in navigator){
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
+      }
+    }catch(err){ /* not available/denied — screen may sleep */ }
+  }
+  document.addEventListener('visibilitychange', function(){
+    if (document.visibilityState === 'visible' && !wakeLock) requestWakeLock();
+  });
+
+  const el = id => document.getElementById(id);
+  const permScreen = el('permissionScreen');
+  const step1 = el('step1'), step2 = el('step2');
+  const pill1 = el('pill1'), pill2 = el('pill2');
+
+  function setBubble(bubbleEl, dBeta, dGamma){
+    const clamp = v => Math.max(-45, Math.min(45, v));
+    const x = (clamp(dGamma)/45) * 70;
+    const y = (clamp(dBeta)/45) * 70;
+    bubbleEl.style.left = `calc(50% + ${x}px)`;
+    bubbleEl.style.top = `calc(50% + ${y}px)`;
+    const isOk = Math.abs(dBeta) < TOL && Math.abs(dGamma) < TOL;
+    bubbleEl.classList.toggle('ok', isOk);
+    return isOk;
+  }
+
+  function handleOrientation(e){
+    if (e.beta === null || e.gamma === null) return;
+    current.beta = e.beta;
+    current.gamma = e.gamma;
+
+    if (step === 1){
+      el('beta1').textContent = current.beta.toFixed(1) + '°';
+      el('gamma1').textContent = current.gamma.toFixed(1) + '°';
+      const isOk = setBubble(el('bubble1'), current.beta, current.gamma);
+      el('status1').textContent = isOk ? 'Flat — ready to calibrate.' : 'Hold steady, then calibrate.';
+      el('status1').classList.toggle('ok', isOk);
+    } else if (step === 2 && ref){
+      const dBeta = current.beta - ref.beta;
+      const dGamma = current.gamma - ref.gamma;
+
+      el('beta2').textContent = (dBeta>=0?'+':'') + dBeta.toFixed(1) + '°';
+      el('gamma2').textContent = (dGamma>=0?'+':'') + dGamma.toFixed(1) + '°';
+
+      const cFL =  dBeta + dGamma;
+      const cFR =  dBeta - dGamma;
+      const cBL = -dBeta + dGamma;
+      const cBR = -dBeta - dGamma;
+
+      updateCorner('cornerFL', cFL);
+      updateCorner('cornerFR', cFR);
+      updateCorner('cornerBL', cBL);
+      updateCorner('cornerBR', cBR);
+      updateVisual({BL:cBL, BR:cBR, FL:cFL, FR:cFR});
+
+      const allOk = Math.abs(dBeta) < TOL && Math.abs(dGamma) < TOL;
+      const status = el('status2');
+      status.textContent = allOk ? 'Surfaces are level and parallel.' : 'Adjust corners as indicated.';
+      status.classList.toggle('ok', allOk);
+    }
+  }
+
+  // Base (level) screen positions for each corner of the pseudo-3D plane.
+  const basePos = {
+    BL:{x:95,  y:50},
+    BR:{x:205, y:50},
+    FL:{x:45,  y:140},
+    FR:{x:255, y:140}
+  };
+  const PX_PER_DEG = 4;   // visual sensitivity
+  const MAX_OFFSET_PX = 45;
+
+  function cornerColor(delta){
+    if (Math.abs(delta) < TOL) return 'var(--green)';
+    return delta > 0 ? 'var(--red)' : 'var(--amber)';
+  }
+
+  function updateVisual(deltas){
+    const pts = {};
+    ['BL','BR','FL','FR'].forEach(k => {
+      const base = basePos[k];
+      const offset = Math.max(-MAX_OFFSET_PX, Math.min(MAX_OFFSET_PX, deltas[k]*PX_PER_DEG));
+      const y = base.y + offset; // positive delta = currently low = drawn lower on screen
+      pts[k] = {x: base.x, y: y};
+
+      el('dot'+k).setAttribute('cy', y);
+      el('dot'+k).setAttribute('fill', cornerColor(deltas[k]));
+
+      const stem = el('stem'+k);
+      stem.setAttribute('y1', base.y);
+      stem.setAttribute('y2', y);
+      stem.setAttribute('stroke', cornerColor(deltas[k]));
+    });
+    el('tiltPlane').setAttribute('points',
+      `${pts.BL.x},${pts.BL.y} ${pts.BR.x},${pts.BR.y} ${pts.FR.x},${pts.FR.y} ${pts.FL.x},${pts.FL.y}`
+    );
+  }
+
+  function updateCorner(id, delta){
+    const c = el(id);
+    const arrow = c.querySelector('.arrow');
+    const amt = c.querySelector('.amt');
+    amt.textContent = Math.abs(delta).toFixed(1) + '°';
+    c.classList.remove('up','down','ok');
+    if (Math.abs(delta) < TOL){
+      arrow.textContent = '●'; c.classList.add('ok');
+    } else if (delta > 0){
+      arrow.textContent = '▲'; c.classList.add('up');
+    } else {
+      arrow.textContent = '▼'; c.classList.add('down');
+    }
+  }
+
+  function goToStep(n){
+    step = n;
+    step1.classList.toggle('hidden', n!==1);
+    step2.classList.toggle('hidden', n!==2);
+    pill1.classList.toggle('active', n===1);
+    pill1.classList.toggle('done', n===2);
+    pill2.classList.toggle('active', n===2);
+    el('stepTitle').textContent = n===1 ? 'Step 1 — Calibrate surface 1' : 'Step 2 — Adjust surface 2';
+  }
+
+  el('calibrateBtn').addEventListener('click', function(){
+    ref = {beta: current.beta, gamma: current.gamma};
+    goToStep(2);
+  });
+  el('recalibrateBtn').addEventListener('click', function(){
+    goToStep(1);
+  });
+
+  function startListening(){
+    permScreen.classList.add('hidden');
+    step1.classList.remove('hidden');
+    window.addEventListener('deviceorientation', handleOrientation, true);
+    requestWakeLock();
+  }
+
+  el('enableBtn').addEventListener('click', function(){
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
+      DeviceOrientationEvent.requestPermission().then(function(resp){
+        if (resp === 'granted'){ startListening(); }
+        else {
+          const box = el('permError');
+          box.textContent = 'Motion access was not granted. Enable it in your browser settings and reload the page.';
+          box.classList.remove('hidden');
+        }
+      }).catch(function(err){
+        const box = el('permError');
+        box.textContent = 'Could not request motion access: ' + err.message;
+        box.classList.remove('hidden');
+      });
+    } else if (window.DeviceOrientationEvent){
+      startListening();
+    } else {
+      const box = el('permError');
+      box.textContent = 'This device or browser does not expose motion sensor data.';
+      box.classList.remove('hidden');
+    }
+  });
+})();
+</script>
+
+</body>
+</html>
